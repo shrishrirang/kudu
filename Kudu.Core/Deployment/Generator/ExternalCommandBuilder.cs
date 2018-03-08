@@ -84,6 +84,7 @@ namespace Kudu.Core.Deployment.Generator
 
             exe.EnvironmentVariables[WellKnownEnvironmentVariables.PreviousManifestPath] = context.PreviousManifestFilePath ?? String.Empty;
             exe.EnvironmentVariables[WellKnownEnvironmentVariables.NextManifestPath] = context.NextManifestFilePath;
+            exe.EnvironmentVariables[WellKnownEnvironmentVariables.IgnoreManifest] = "1";
 
             exe.EnvironmentVariables[WellKnownEnvironmentVariables.BuildTempPath] = context.BuildTempPath;
 
