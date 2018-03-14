@@ -35,7 +35,7 @@ namespace Kudu.Client.Deployment
                     new KeyValuePair<string, string>("message", metadata.Message),
                 };
 
-                if (map != null)
+                if (queryParams != null)
                 {
                     map.AddRange(queryParams);
                 }
