@@ -366,6 +366,18 @@ namespace Kudu.FunctionalTests
             });
         }
 
+        [Fact]
+        public Task TestSimpleWarDeploymentWithCustomAppName()
+        {
+            return ApplicationManager.RunAsync("TestSimpleWarDeploymentPerformsCleanDeployment", async appManager =>
+            {
+                var files = CreateRandomFilesForZip(10);
+                var response = await DeployWar(appManager, files, new ZipDeployMetadata(), "testappname");
+                response.EnsureSuccessStatusCode();
+                await AssertSuccessfulDeploymentByFilenames(appManager, files.Select(f => f.Filename).ToArray(), "webapps/testappname");
+            });
+        }
+
         private static async Task AssertSuccessfulDeploymentByContent(ApplicationManager appManager, FileForZip[] files)
         {
             TestTracer.Trace("Verifying files are deployed and deployment record created.");
@@ -420,14 +432,22 @@ namespace Kudu.FunctionalTests
         private static async Task<HttpResponseMessage> DeployWar(
             ApplicationManager appManager,
             FileForZip[] files,
-            ZipDeployMetadata metadata)
+            ZipDeployMetadata metadata,
+            string appName = null)
         {
             TestTracer.Trace("Push-deploying war");
             using (var zipStream = CreateZipStream(files))
             {
+                IList<KeyValuePair<string, string>> queryParams = null;
+                if (!string.IsNullOrWhiteSpace(appName))
+                {
+                    queryParams = new List<KeyValuePair<string, string>>(){ new KeyValuePair<string, string>( "name", appName ) };
+                }
+
                 return await appManager.WarDeploymentManager.PushDeployFromStream(
                     zipStream,
-                    metadata);
+                    metadata,
+                    queryParams);
             }
         }
 
