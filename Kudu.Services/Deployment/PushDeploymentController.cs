@@ -214,7 +214,7 @@ namespace Kudu.Services.Deployment
                     RestartAllowed = restart,
                 };
 
-                string websiteStack = !string.IsNullOrWhiteSpace(stack) ? stack : _settings.GetValue(Constants.StackEnvVarName);
+                string websiteStack = !string.IsNullOrWhiteSpace(stack) ? stack : System.Environment.GetEnvironmentVariable(Constants.StackEnvVarName);
 
                 ArtifactType artifactType = ArtifactType.Invalid;
                 try

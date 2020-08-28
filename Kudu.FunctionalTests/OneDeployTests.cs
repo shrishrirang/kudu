@@ -27,9 +27,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestAppDotWarDeployment", async appManager =>
             {
-                ConfigureSiteAsTomcatSite(appManager);
-
-                await DeployNonZippedArtifact(appManager, "war", null, isAsync);
+                await DeployNonZippedArtifact(appManager, "war", null, isAsync, "ToMcAt");
 
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "hostingstart.html", "app.war" }, "site/wwwroot");
             });
@@ -42,9 +40,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestAppDotJarDeployment", async appManager =>
             {
-                ConfigureSiteAsJavaSESite(appManager);
-
-                await DeployNonZippedArtifact(appManager, "jar", null, isAsync);
+                await DeployNonZippedArtifact(appManager, "jar", null, isAsync, "jAvA");
 
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "hostingstart.html", "app.jar" }, "site/wwwroot");
             });
@@ -57,9 +53,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestAppDotEarDeployment", async appManager =>
             {
-                ConfigureSiteAsJbossEapSite(appManager);
-
-                await DeployNonZippedArtifact(appManager, "ear", null, isAsync);
+                await DeployNonZippedArtifact(appManager, "ear", null, isAsync, "jbossEAP");
 
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "hostingstart.html", "app.ear" }, "site/wwwroot");
             });
@@ -76,9 +70,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestLibDeployment", async appManager =>
             {
-                ConfigureSiteAsJavaSESite(appManager);
-
-                await DeployNonZippedArtifact(appManager, "lib", "site/wwwroot/dir1/dir2/library.jar", isAsync);
+                await DeployNonZippedArtifact(appManager, "lib", "site/wwwroot/dir1/dir2/library.jar", isAsync, "jAvA");
 
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "library.jar" }, "site/wwwroot/dir1/dir2");
             });
@@ -146,11 +138,9 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestLegacyWarDeployment", async appManager =>
             {
-                ConfigureSiteAsTomcatSite(appManager);
-
                 // STEP 1A: First legacy war deployment
                 var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
-                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "war", "site/wwwroot/webapps/ROOT", isAsync);
+                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "war", "site/wwwroot/webapps/ROOT", isAsync, "tOmCaT");
 
                 // STEP 1B: Validate the result of the first legacy war deployment
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, files1.Select(f => f.Filename).ToArray(), "site/wwwroot/webapps/ROOT");
@@ -158,10 +148,10 @@ namespace Kudu.FunctionalTests
 
                 // STEP 2A: Second legacy war deployment
                 var files2 = DeploymentTestHelper.CreateRandomFilesForZip(10);
-                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files2, "war", "site/wwwroot/webapps/ROOT", isAsync);
+                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files2, "war", "site/wwwroot/webapps/ROOT", isAsync, "tOmCaT");
 
                 // STEP 2B: Validate that the second legacy war deployment cleans up the files deployes by the first deployment
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, files2.Select(f => f.Filename).ToArray(), "site/wwwroot/webapps/ROOT");
+                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, files2.Select(f => f.Filename).ToArray(), "site/wwwroot/webapps/ROOT", "tOmCaT");
             });
         }
 
@@ -284,14 +274,15 @@ namespace Kudu.FunctionalTests
             ApplicationManager appManager,
             string type,
             string path,
-            bool isAsync)
+            bool isAsync,
+            string stack = null)
         {
             TestTracer.Trace("Deploying file");
 
             var testFile = DeploymentTestHelper.CreateRandomTestFile();
             using (var fileStream = DeploymentTestHelper.CreateFileStream(testFile))
             {
-                IList<KeyValuePair<string, string>> queryParams = GetOneDeployQueryParams(type, path, isAsync);
+                IList<KeyValuePair<string, string>> queryParams = GetOneDeployQueryParams(type, path, isAsync, stack);
 
                 var response = await appManager.OneDeployManager.PushDeployFromStream(fileStream, new ZipDeployMetadata(), queryParams);
                 response.EnsureSuccessStatusCode();
@@ -310,12 +301,13 @@ namespace Kudu.FunctionalTests
                                                                             TestFile[] files,
                                                                             string type,
                                                                             string path,
-                                                                            bool isAsync)
+                                                                            bool isAsync,
+                                                                            string stack = null)
         {
             TestTracer.Trace("Deploying zip");
             using (var zipStream = DeploymentTestHelper.CreateZipStream(files))
             {
-                IList<KeyValuePair<string, string>> queryParams = GetOneDeployQueryParams(type, path, isAsync);
+                IList<KeyValuePair<string, string>> queryParams = GetOneDeployQueryParams(type, path, isAsync, stack);
 
                 var response = await deploymentManager.PushDeployFromStream(zipStream, new ZipDeployMetadata(), queryParams);
                 response.EnsureSuccessStatusCode();
@@ -327,7 +319,7 @@ namespace Kudu.FunctionalTests
             }
         }
 
-        private static IList<KeyValuePair<string, string>> GetOneDeployQueryParams(string type, string path, bool isAsync)
+        private static IList<KeyValuePair<string, string>> GetOneDeployQueryParams(string type, string path, bool isAsync, string stack = null)
         {
             IList<KeyValuePair<string, string>> queryParams = new List<KeyValuePair<string, string>>();
 
@@ -339,6 +331,11 @@ namespace Kudu.FunctionalTests
             if (!string.IsNullOrWhiteSpace(path))
             {
                 queryParams.Add(new KeyValuePair<string, string>("path", path));
+            }
+
+            if (!string.IsNullOrWhiteSpace(stack))
+            {
+                queryParams.Add(new KeyValuePair<string, string>("stack", stack));
             }
 
             if (isAsync != false)
@@ -354,24 +351,6 @@ namespace Kudu.FunctionalTests
             queryParams.Add(new KeyValuePair<string, string>("restart", "false"));
 
             return queryParams;
-        }
-
-        private void ConfigureSiteAsTomcatSite(ApplicationManager appManager)
-        {
-            // Obfuscate case to check for case-insensitivity
-            appManager.SettingsManager.SetValue("WEBSITE_STACK", "TOMcat").Wait();
-        }
-
-        private void ConfigureSiteAsJavaSESite(ApplicationManager appManager)
-        {
-            // Obfuscate case to check for case-insensitivity
-            appManager.SettingsManager.SetValue("WEBSITE_STACK", "JAva").Wait();
-        }
-
-        private void ConfigureSiteAsJbossEapSite(ApplicationManager appManager)
-        {
-            // Obfuscate case to check for case-insensitivity
-            appManager.SettingsManager.SetValue("WEBSITE_STACK", "JBOSSeap").Wait();
         }
 
         #endregion
