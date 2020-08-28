@@ -151,7 +151,7 @@ namespace Kudu.FunctionalTests
                 await DeployZippedArtifact(appManager, appManager.OneDeployManager, files2, "war", "site/wwwroot/webapps/ROOT", isAsync, "tOmCaT");
 
                 // STEP 2B: Validate that the second legacy war deployment cleans up the files deployes by the first deployment
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, files2.Select(f => f.Filename).ToArray(), "site/wwwroot/webapps/ROOT", "tOmCaT");
+                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, files2.Select(f => f.Filename).ToArray(), "site/wwwroot/webapps/ROOT");
             });
         }
 
@@ -164,8 +164,6 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestURLDeployment", async appManager =>
             {
-                ConfigureSiteAsTomcatSite(appManager);
-
                 var client = appManager.OneDeployManager.Client;
                 var requestUri = isArmRequest ? $"{client.BaseAddress}" : $"{client.BaseAddress}?type=static&restart=false&path=site/wwwroot/NOTICE.txt&async={isAsync}";
                 using (var request = new HttpRequestMessage(HttpMethod.Put, requestUri))
@@ -183,6 +181,7 @@ namespace Kudu.FunctionalTests
                                 restart = false,
                                 path = "site/wwwroot/NOTICE.txt",
                                 async = isAsync,
+                                stack = "ToMcAt",
                             }
                         };
 
