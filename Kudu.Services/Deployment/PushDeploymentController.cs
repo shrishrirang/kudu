@@ -166,7 +166,7 @@ namespace Kudu.Services.Deployment
             [FromUri] string stack = null
             )
         {
-            using (_tracer.Step("OnePushDeploy"))
+            using (_tracer.Step(Constants.OneDeploy))
             {
                 JObject requestObject = null;
 
@@ -204,12 +204,12 @@ namespace Kudu.Services.Deployment
                     IsContinuous = false,
                     AllowDeferredDeployment = false,
                     IsReusable = false,
-                    TargetChangeset = DeploymentManager.CreateTemporaryChangeSet(message: "OneDeploy"),
+                    TargetChangeset = DeploymentManager.CreateTemporaryChangeSet(message: Constants.OneDeploy),
                     CommitId = null,
                     RepositoryType = RepositoryType.None,
                     Fetch = OneDeployFetch,
                     DoFullBuildByDefault = false,
-                    Message = "OneDeploy",
+                    Message = Constants.OneDeploy,
                     WatchedFileEnabled = false,
                     RestartAllowed = restart,
                 };
@@ -231,7 +231,7 @@ namespace Kudu.Services.Deployment
                     case ArtifactType.War:
                         if(!string.Equals(websiteStack, Constants.Tomcat, StringComparison.OrdinalIgnoreCase))
                         {
-                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"WAR files cannot be deployed to stack='{websiteStack}'. Expected stack='TOMCAT'"); 
+                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"WAR files cannot be deployed to stack='{websiteStack}'. Expected stack='{Constants.Tomcat}'"); 
                         }
                         
                         // Support for legacy war deployments
@@ -266,7 +266,7 @@ namespace Kudu.Services.Deployment
                     case ArtifactType.Jar:
                         if (!string.Equals(websiteStack, Constants.JavaSE, StringComparison.OrdinalIgnoreCase))
                         {
-                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"JAR files cannot be deployed to stack='{websiteStack}'. Expected stack='JAVASE'");
+                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"JAR files cannot be deployed to stack='{websiteStack}'. Expected stack='{Constants.JavaSE}'");
                         }
 
                         deploymentInfo.TargetFileName = "app.jar";
@@ -277,7 +277,7 @@ namespace Kudu.Services.Deployment
                         // Currently not supported on Windows but here for future use
                         if (!string.Equals(websiteStack, Constants.JBossEap, StringComparison.OrdinalIgnoreCase))
                         {
-                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"EAR files cannot be deployed to stack='{websiteStack}'. Expected stack='JBOSSEAP'");
+                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"EAR files cannot be deployed to stack='{websiteStack}'. Expected stack='{Constants.JBossEap}'");
                         }
 
                         deploymentInfo.TargetFileName = "app.ear";
