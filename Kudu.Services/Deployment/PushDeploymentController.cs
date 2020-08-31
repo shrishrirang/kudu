@@ -346,7 +346,7 @@ namespace Kudu.Services.Deployment
             }
         }
 
-        private void SetTargetDirectoyAndFileNameFromPath(DeploymentInfoBase deploymentInfo, string defaultTargetDirectory, string path)
+        private static void SetTargetDirectoyAndFileNameFromPath(DeploymentInfoBase deploymentInfo, string defaultTargetDirectory, string path)
         {
             // Extract directory path and file name from 'path'
             // Example: path=a/b/c.jar => TargetDirectoryName=a/b and TargetFileName=c.jar
