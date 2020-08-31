@@ -162,7 +162,8 @@ namespace Kudu.Services.Deployment
             [FromUri] string type = null,
             [FromUri] bool async = false,
             [FromUri] string path = null,
-            [FromUri] bool restart = true,
+            [FromUri] bool? restart = true,
+            [FromUri] bool? clean = null,
             [FromUri] string stack = null
             )
         {
@@ -179,7 +180,8 @@ namespace Kudu.Services.Deployment
                         type = armProperties.Value<string>("type");
                         async = armProperties.Value<bool>("async");
                         path = armProperties.Value<string>("path");
-                        restart = armProperties.Value<bool>("restart");
+                        restart = armProperties.Value<bool?>("restart");
+                        clean = armProperties.Value<bool?>("clean");
                         stack = armProperties.Value<string>("stack");
                     }
                 }
@@ -211,7 +213,7 @@ namespace Kudu.Services.Deployment
                     DoFullBuildByDefault = false,
                     Message = Constants.OneDeploy,
                     WatchedFileEnabled = false,
-                    RestartAllowed = restart,
+                    RestartAllowed = restart.GetValueOrDefault(true),
                 };
 
                 string websiteStack = !string.IsNullOrWhiteSpace(stack) ? stack : System.Environment.GetEnvironmentVariable(Constants.StackEnvVarName);
@@ -234,19 +236,17 @@ namespace Kudu.Services.Deployment
                             return Request.CreateResponse(HttpStatusCode.BadRequest, $"WAR files cannot be deployed to stack='{websiteStack}'. Expected stack='{Constants.Tomcat}'"); 
                         }
                         
-                        // Support for legacy war deployments
-                        // Sets TargetDirectoryPath then deploys the War file as a Zip so it can be extracted
-                        // then deployed
+                        // If path is non-null, we assume this is a legacy war deployment, i.e. equivalent of wardeploy
                         if(!string.IsNullOrWhiteSpace(path))
                         {
                             //
-                            // For legacy war deployments, the only path allowed is site/wwwroot/webapps/<directory-name>
+                            // For legacy war deployments, the only path allowed is webapps/<directory-name>
                             //
 
                             var segments = path.Split('/');
-                            if (segments.Length != 4 || !path.StartsWith("site/wwwroot/webapps/") || string.IsNullOrWhiteSpace(segments[3]))
+                            if (segments.Length != 2 || !path.StartsWith("webapps/") || string.IsNullOrWhiteSpace(segments[1]))
                             {
-                                return Request.CreateResponse(HttpStatusCode.BadRequest, $"path='{path}'. Only allowed path when type={artifactType} is site/wwwroot/webapps/<directory-name>. Example: path=site/wwwroot/webapps/ROOT");
+                                return Request.CreateResponse(HttpStatusCode.BadRequest, $"path='{path}'. Only allowed path when type={artifactType} is webapps/<directory-name>. Example: path=webapps/ROOT");
                             }
 
                             deploymentInfo.TargetDirectoryPath = Path.Combine(_environment.RootPath, path);
@@ -256,8 +256,8 @@ namespace Kudu.Services.Deployment
                         }
                         else
                         {
-                            // For type=war, the target file is app.war
-                            // As we want app.war to be deployed to wwwroot, no need to configure TargetDirectoryPath
+                            // For type=war, if no path is specified, the target file is app.war
+                            deploymentInfo.TargetDirectoryPath = _environment.WebRootPath;
                             deploymentInfo.TargetFileName = "app.war";
                         }
 
@@ -269,6 +269,7 @@ namespace Kudu.Services.Deployment
                             return Request.CreateResponse(HttpStatusCode.BadRequest, $"JAR files cannot be deployed to stack='{websiteStack}'. Expected stack='{Constants.JavaSE}'");
                         }
 
+                        deploymentInfo.TargetDirectoryPath = _environment.WebRootPath;
                         deploymentInfo.TargetFileName = "app.jar";
 
                         break;
@@ -280,6 +281,7 @@ namespace Kudu.Services.Deployment
                             return Request.CreateResponse(HttpStatusCode.BadRequest, $"EAR files cannot be deployed to stack='{websiteStack}'. Expected stack='{Constants.JBossEap}'");
                         }
 
+                        deploymentInfo.TargetDirectoryPath = _environment.WebRootPath;
                         deploymentInfo.TargetFileName = "app.ear";
 
                         break;
@@ -287,15 +289,33 @@ namespace Kudu.Services.Deployment
                     case ArtifactType.Lib:
                         if (string.IsNullOrWhiteSpace(path))
                         {
+                            // TODO(shrirs): Include usage in error messsages
+                            // TODO(shrirs): Improve error handling. Example: Path validation.
                             return Request.CreateResponse(HttpStatusCode.BadRequest, $"Path must be defined for library deployments");
                         }
 
-                        SetTargetFromPath(deploymentInfo, path);
+                        SetTargetDirectoyAndFileNameFromPath(deploymentInfo, Path.Combine(_environment.RootPath, Constants.LibsDirectoryRelativePath), path);
 
+                        deploymentInfo.CleanupTargetDirectory = clean.GetValueOrDefault(false);
+                    
                         break;
 
                     case ArtifactType.Startup:
-                        SetTargetFromPath(deploymentInfo, GetStartupFileName());
+                        SetTargetDirectoyAndFileNameFromPath(deploymentInfo, Path.Combine(_environment.RootPath, Constants.ScriptsDirectoryRelativePath), GetStartupFileName());
+
+                        deploymentInfo.CleanupTargetDirectory = clean.GetValueOrDefault(false);
+
+                        break;
+
+                    case ArtifactType.Script:
+                        if (string.IsNullOrWhiteSpace(path))
+                        {
+                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"Path must be defined for script deployments");
+                        }
+
+                        SetTargetDirectoyAndFileNameFromPath(deploymentInfo, Path.Combine(_environment.RootPath, Constants.ScriptsDirectoryRelativePath), path);
+
+                        deploymentInfo.CleanupTargetDirectory = clean.GetValueOrDefault(false);
 
                         break;
 
@@ -305,12 +325,16 @@ namespace Kudu.Services.Deployment
                             return Request.CreateResponse(HttpStatusCode.BadRequest, $"Path must be defined for static file deployments");
                         }
 
-                        SetTargetFromPath(deploymentInfo, path);
+                        SetTargetDirectoyAndFileNameFromPath(deploymentInfo, _environment.WebRootPath, path);
+
+                        deploymentInfo.CleanupTargetDirectory = clean.GetValueOrDefault(false);
 
                         break;
 
                     case ArtifactType.Zip:
                         deploymentInfo.Fetch = LocalZipHandler;
+
+                        deploymentInfo.CleanupTargetDirectory = clean.GetValueOrDefault(true);
 
                         break;
 
@@ -322,7 +346,7 @@ namespace Kudu.Services.Deployment
             }
         }
 
-        private void SetTargetFromPath(DeploymentInfoBase deploymentInfo, string path)
+        private void SetTargetDirectoyAndFileNameFromPath(DeploymentInfoBase deploymentInfo, string defaultTargetDirectory, string path)
         {
             // Extract directory path and file name from 'path'
             // Example: path=a/b/c.jar => TargetDirectoryName=a/b and TargetFileName=c.jar
@@ -336,14 +360,14 @@ namespace Kudu.Services.Deployment
             // Translate \foo\bar to foo\bar
             // That way, we can combine it with %HOME% to get the absolute path
             relativeDirectoryPath = relativeDirectoryPath.TrimStart('/', '\\');
-            var absoluteDirectoryPath = Path.Combine(_environment.RootPath, relativeDirectoryPath);
+            var absoluteDirectoryPath = Path.Combine(defaultTargetDirectory, relativeDirectoryPath);
 
             deploymentInfo.TargetDirectoryPath = absoluteDirectoryPath;
         }
 
         private static string GetStartupFileName()
         {
-            return OSDetector.IsOnWindows() ? "startup.bat" : "startup.sh";
+            return OSDetector.IsOnWindows() ? "startup.cmd" : "startup.sh";
         }
 
         private string GetArticfactURLFromARMJSON(JObject requestObject)
