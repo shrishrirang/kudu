@@ -249,7 +249,7 @@ namespace Kudu.Services.Deployment
                                 return Request.CreateResponse(HttpStatusCode.BadRequest, $"path='{path}'. Only allowed path when type={artifactType} is webapps/<directory-name>. Example: path=webapps/ROOT");
                             }
 
-                            deploymentInfo.TargetDirectoryPath = Path.Combine(_environment.RootPath, path);
+                            deploymentInfo.TargetDirectoryPath = Path.Combine(_environment.WebRootPath, path);
                             deploymentInfo.Fetch = LocalZipHandler;
                             deploymentInfo.CleanupTargetDirectory = true;
                             artifactType = ArtifactType.Zip;
