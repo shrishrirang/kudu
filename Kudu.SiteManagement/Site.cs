@@ -24,6 +24,26 @@ namespace Kudu.SiteManagement
             }
         }
         public IList<string> SiteUrls { get; set; }
-        public IList<string> ServiceUrls { get; set; }
+
+#pragma warning disable CA1823 // Unused variable
+        IList<string> _serviceUrls = null;
+        public IList<string> ServiceUrls
+        {
+            get
+            {
+                if (Constants.RunTestAgainstWindows)
+#pragma warning disable CS0162 // Unreachable code detected
+                    return _serviceUrls;
+#pragma warning restore CS0162 // Unreachable code detected
+
+                return new List<string> { "http://localhost:8181/" }; // 7397 and 8181
+            }
+
+            set
+            {
+                _serviceUrls = value;
+            }
+        }
+#pragma warning restore CA1823 // Unused variable
     }
 }
