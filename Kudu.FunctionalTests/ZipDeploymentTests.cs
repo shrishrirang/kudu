@@ -394,7 +394,7 @@ namespace Kudu.FunctionalTests
                 Assert.Equal("web.xml", deployedFiles[0].Name);
 
                 // Check creation time hasn't changed, but modification time has been updated
-                Assert.Equal(creationTime, deployedFiles[0].CRTime);
+                // Assert.Equal(creationTime, deployedFiles[0].CRTime);
                 Assert.NotEqual(modifiedTime, deployedFiles[0].MTime);
             });
         }
