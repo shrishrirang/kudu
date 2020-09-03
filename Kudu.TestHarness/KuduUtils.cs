@@ -83,7 +83,7 @@ namespace Kudu.TestHarness
                 }
 
                 // Append the machine name to the site to avoid conflicting with other users running tests
-                return String.Format("{0}{1}", siteName, Environment.MachineName);
+                return String.Format("{0}{1}", siteName, "shrirs");
             }
         }
 

@@ -75,7 +75,7 @@ namespace Kudu.FunctionalTests
                 await DeployNonZippedArtifact(appManager, "lib", "dir1/dir2/library3.jar", isAsync, null, "site/libs/dir1/dir2/library3.jar");
                 await DeployNonZippedArtifact(appManager, "lib", "dir1/dir2/library4.jar", isAsync, null, "site/libs/dir1/dir2/library4.jar");
 
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "library1.jar", "library2.jar" }, "site/libs");
+                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "library1.jar", "library2.jar", "dir1" }, "site/libs");
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "library3.jar", "library4.jar" }, "site/libs/dir1/dir2");
             });
         }
@@ -93,7 +93,7 @@ namespace Kudu.FunctionalTests
                 await DeployNonZippedArtifact(appManager, "static", "statictestdir/statictestfile3.txt", isAsync, null, "site/wwwroot/statictestdir/statictestfile3.txt");
                 await DeployNonZippedArtifact(appManager, "static", "statictestdir/statictestfile4.txt", isAsync, null, "site/wwwroot/statictestdir/statictestfile4.txt");
 
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "statictestfile1.txt", "statictestfile2.txt" }, "site/wwwroot");
+                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "statictestfile1.txt", "statictestfile2.txt", "statictestdir", "hostingstart.html" }, "site/wwwroot");
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "statictestfile3.txt", "statictestfile4.txt" }, "site/wwwroot/statictestdir");
             });
         }
