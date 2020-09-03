@@ -70,9 +70,9 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestLibDeployment", async appManager =>
             {
-                await DeployNonZippedArtifact(appManager, "lib", "site/wwwroot/dir1/dir2/library.jar", isAsync, "jAvA");
+                await DeployNonZippedArtifact(appManager, "lib", "dir1/dir2/library.jar", isAsync, "jAvA");
 
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "library.jar" }, "site/wwwroot/dir1/dir2");
+                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "library.jar" }, "site/libs/dir1/dir2");
             });
         }
 
@@ -83,7 +83,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestStaticFileDeployment", async appManager =>
             {
-                await DeployNonZippedArtifact(appManager, "static", "site/wwwroot/statictestdir/statictestfile.txt", isAsync);
+                await DeployNonZippedArtifact(appManager, "static", "statictestdir/statictestfile.txt", isAsync);
 
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "statictestfile.txt" }, "site/wwwroot/statictestdir");
             });
@@ -104,7 +104,7 @@ namespace Kudu.FunctionalTests
 
                 Assert.Equal(DeployStatus.Success, deployment.Status);
 
-                var observedStartupFileContent = appManager.VfsManager.ReadAllText("startup.bat");
+                var observedStartupFileContent = appManager.VfsManager.ReadAllText("site/scripts/startup.sh");
 
                 Assert.Equal(originalStartupFileContent, observedStartupFileContent);
             });
@@ -121,7 +121,7 @@ namespace Kudu.FunctionalTests
                 await DeployZippedArtifact(appManager, appManager.OneDeployManager, files, "zip", null, isAsync);
 
                 var expectedFiles = files.Select(f => f.Filename).ToList();
-                expectedFiles.Add("hostingstart.html");
+                // expectedFiles.Add("hostingstart.html"); -> ZipDeploy behavior changed to do clean deploy, so hostingstart.html will be nuked
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, expectedFiles.ToArray(), "site/wwwroot");
             });
         }
@@ -140,7 +140,7 @@ namespace Kudu.FunctionalTests
             {
                 // STEP 1A: First legacy war deployment
                 var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
-                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "war", "site/wwwroot/webapps/ROOT", isAsync, "tOmCaT");
+                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "war", "webapps/ROOT", isAsync, "tOmCaT");
 
                 // STEP 1B: Validate the result of the first legacy war deployment
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, files1.Select(f => f.Filename).ToArray(), "site/wwwroot/webapps/ROOT");
@@ -148,7 +148,7 @@ namespace Kudu.FunctionalTests
 
                 // STEP 2A: Second legacy war deployment
                 var files2 = DeploymentTestHelper.CreateRandomFilesForZip(10);
-                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files2, "war", "site/wwwroot/webapps/ROOT", isAsync, "tOmCaT");
+                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files2, "war", "webapps/ROOT", isAsync, "tOmCaT");
 
                 // STEP 2B: Validate that the second legacy war deployment cleans up the files deployes by the first deployment
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, files2.Select(f => f.Filename).ToArray(), "site/wwwroot/webapps/ROOT");
@@ -165,7 +165,7 @@ namespace Kudu.FunctionalTests
             return ApplicationManager.RunAsync("TestURLDeployment", async appManager =>
             {
                 var client = appManager.OneDeployManager.Client;
-                var requestUri = isArmRequest ? $"{client.BaseAddress}" : $"{client.BaseAddress}?type=static&restart=false&path=site/wwwroot/NOTICE.txt&async={isAsync}";
+                var requestUri = isArmRequest ? $"{client.BaseAddress}" : $"{client.BaseAddress}?type=static&restart=false&path=NOTICE.txt&async={isAsync}";
                 using (var request = new HttpRequestMessage(HttpMethod.Put, requestUri))
                 {
                     var packageUri = "https://github.com/projectkudu/kudu/blob/master/NOTICE.txt?raw=true";
@@ -179,9 +179,9 @@ namespace Kudu.FunctionalTests
                                 packageUri = packageUri,
                                 type = "static",
                                 restart = false,
-                                path = "site/wwwroot/NOTICE.txt",
+                                path = "NOTICE.txt",
                                 async = isAsync,
-                                stack = "ToMcAt",
+                                ignorestack = "true",
                             }
                         };
 
@@ -218,8 +218,8 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestIterativeDeployment", async appManager =>
             {
-                await DeployNonZippedArtifact(appManager, "static", "site/wwwroot/staticfiletest1.txt", isAsync);
-                await DeployNonZippedArtifact(appManager, "static", "site/wwwroot/staticfiletest2.txt", isAsync);
+                await DeployNonZippedArtifact(appManager, "static", "staticfiletest1.txt", isAsync);
+                await DeployNonZippedArtifact(appManager, "static", "staticfiletest2.txt", isAsync);
 
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "hostingstart.html", "staticfiletest1.txt", "staticfiletest2.txt" }, "site/wwwroot");
             });
@@ -245,7 +245,7 @@ namespace Kudu.FunctionalTests
                 await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, expectedFiles1.ToArray(), "site/wwwroot");
 
                 // STEP 2a: Upload a text file using OneDeploy
-                await DeployNonZippedArtifact(appManager, "static", "site/wwwroot/staticfiletest.txt", isAsync: false);
+                await DeployNonZippedArtifact(appManager, "static", "staticfiletest.txt", isAsync: false);
 
                 // STEP 2b: Validate the OneDeploy result
                 expectedFiles1.Add("staticfiletest.txt");
@@ -332,10 +332,7 @@ namespace Kudu.FunctionalTests
                 queryParams.Add(new KeyValuePair<string, string>("path", path));
             }
 
-            if (!string.IsNullOrWhiteSpace(stack))
-            {
-                queryParams.Add(new KeyValuePair<string, string>("stack", stack));
-            }
+            queryParams.Add(new KeyValuePair<string, string>("ignorestack", "true"));
 
             if (isAsync != false)
             {

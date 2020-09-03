@@ -148,5 +148,7 @@ namespace Kudu
         public const string JavaSE = "JAVA";
         public const string JBossEap = "JBOSSEAP";
 
+        public const bool RunTestAgainstWindows = false;
+
     }
 }
