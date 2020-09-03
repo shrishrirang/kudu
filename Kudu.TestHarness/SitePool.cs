@@ -86,6 +86,9 @@ namespace Kudu.TestHarness
 
                 await appManager.RepositoryManager.Delete(deleteWebRoot: true, ignoreErrors: true);
 
+                appManager.VfsManager.Delete("site/libs", recursive: true);
+                appManager.VfsManager.Delete("site/scripts", recursive: true);
+
                 // Make sure we start with the correct default file as some tests expect it
                 WriteIndexHtml(appManager);
 
