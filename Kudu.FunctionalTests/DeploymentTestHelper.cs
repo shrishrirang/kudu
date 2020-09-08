@@ -83,7 +83,7 @@ namespace Kudu.FunctionalTests
             return s;
         }
 
-        public static async Task AssertSuccessfulDeploymentByFilenames(ApplicationManager appManager, IEnumerable<string> filenames, string path = null)
+        public static async Task AssertSuccessfulDeploymentByFilenames(ApplicationManager appManager, IEnumerable<string> expectedFileNames, string path = null)
         {
             TestTracer.Trace("Verifying files are deployed and deployment record created.");
 
@@ -92,9 +92,9 @@ namespace Kudu.FunctionalTests
             Assert.Equal(DeployStatus.Success, deployment.Status);
 
             var entries = await appManager.VfsManager.ListAsync(path);
-            var deployedFilenames = entries.Select(e => e.Name);
+            var observedFileNames = entries.Select(e => e.Name);
 
-            var filenameSet = new HashSet<string>(filenames);
+            var filenameSet = new HashSet<string>(expectedFileNames);
             Assert.True(filenameSet.SetEquals(entries.Select(e => e.Name)), string.Join(",", filenameSet) + " != " + string.Join(",", entries.Select(e => e.Name)));
         }
     }

@@ -27,9 +27,19 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestAppDotWarDeployment", async appManager =>
             {
-                await DeployNonZippedArtifact(appManager, "war", null, isAsync, null, "site/wwwroot/app.war");
+                var initialFileName = await DeployRandomFilesEverywhere(appManager);
 
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "hostingstart.html", "app.war" }, "site/wwwroot");
+                // Default deployment mode - overwrite app.war
+                {
+                    await DeployNonZippedArtifact(appManager, "war", null, isAsync, null, "site/wwwroot/app.war");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { initialFileName, "webapps", "hostingstart.html", "app.war" }, "site/wwwroot");
+                }
+
+                // Clean deployment
+                {
+                    await DeployNonZippedArtifact(appManager, "war", null, isAsync, true, "site/wwwroot/app.war");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "app.war" }, "site/wwwroot");
+                }
             });
         }
 
@@ -40,9 +50,19 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestAppDotJarDeployment", async appManager =>
             {
-                await DeployNonZippedArtifact(appManager, "jar", null, isAsync, null, "site/wwwroot/app.jar");
+                var initialFileName = await DeployRandomFilesEverywhere(appManager);
 
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "hostingstart.html", "app.jar" }, "site/wwwroot");
+                // Default deployment mode - overwrite app.jar
+                {
+                    await DeployNonZippedArtifact(appManager, "jar", null, isAsync, null, "site/wwwroot/app.jar");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { initialFileName, "webapps", "hostingstart.html", "app.jar" }, "site/wwwroot");
+                }
+
+                // Clean deployment
+                {
+                    await DeployNonZippedArtifact(appManager, "jar", null, isAsync, true, "site/wwwroot/app.jar");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "app.jar" }, "site/wwwroot");
+                }
             });
         }
 
@@ -53,9 +73,19 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestAppDotEarDeployment", async appManager =>
             {
-                await DeployNonZippedArtifact(appManager, "ear", null, isAsync, null, "site/wwwroot/app.ear");
+                var initialFileName = await DeployRandomFilesEverywhere(appManager);
 
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "hostingstart.html", "app.ear" }, "site/wwwroot");
+                // Default deployment mode - overwrite app.ear
+                {
+                    await DeployNonZippedArtifact(appManager, "ear", null, isAsync, null, "site/wwwroot/app.ear");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { initialFileName, "webapps", "hostingstart.html", "app.ear" }, "site/wwwroot");
+                }
+
+                // Clean Deployment
+                {
+                    await DeployNonZippedArtifact(appManager, "ear", null, isAsync, true, "site/wwwroot/app.ear");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "app.ear" }, "site/wwwroot");
+                }
             });
         }
 
@@ -70,13 +100,58 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestLibDeployment", async appManager =>
             {
-                var lib1Content = await DeployNonZippedArtifact(appManager, "lib", "library1.jar", isAsync, null, "site/libs/library1.jar");
-                var lib2Content = await DeployNonZippedArtifact(appManager, "lib", "library2.jar", isAsync, null, "site/libs/library2.jar");
-                await DeployNonZippedArtifact(appManager, "lib", "dir1/dir2/library3.jar", isAsync, null, "site/libs/dir1/dir2/library3.jar");
-                await DeployNonZippedArtifact(appManager, "lib", "dir1/dir2/library4.jar", isAsync, null, "site/libs/dir1/dir2/library4.jar");
+                var initialFileName = await DeployRandomFilesEverywhere(appManager);
 
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "library1.jar", "library2.jar", "dir1" }, "site/libs");
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "library3.jar", "library4.jar" }, "site/libs/dir1/dir2");
+                // Default deployment - incremental
+                {
+                    await DeployNonZippedArtifact(appManager, "lib", "library1.jar", isAsync, null, "site/libs/library1.jar");
+                    await DeployNonZippedArtifact(appManager, "lib", "library2.jar", isAsync, null, "site/libs/library2.jar");
+                    await DeployNonZippedArtifact(appManager, "lib", "dir1/dir2/library3.jar", isAsync, null, "site/libs/dir1/dir2/library3.jar");
+                    await DeployNonZippedArtifact(appManager, "lib", "dir1/dir2/library4.jar", isAsync, null, "site/libs/dir1/dir2/library4.jar");
+
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { initialFileName, "library1.jar", "library2.jar", "dir1" }, "site/libs");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "library3.jar", "library4.jar" }, "site/libs/dir1/dir2");
+                }
+
+                // Clean deployment
+                {
+                    await DeployNonZippedArtifact(appManager, "lib", "dir/library.jar", isAsync, true, "site/libs/dir/library.jar");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "dir" }, "site/libs");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "library.jar" }, "site/libs/dir");
+
+                    await DeployNonZippedArtifact(appManager, "lib", "library.jar", isAsync, true, "site/libs/library.jar");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "library.jar" }, "site/libs");
+                }
+            });
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task TestScriptDeployment(bool isAsync)
+        {
+            return ApplicationManager.RunAsync("TestScriptDeployment", async appManager =>
+            {
+                var initialFileName = await DeployRandomFilesEverywhere(appManager);
+
+                // Default deployment - incremental
+                {
+                    await DeployNonZippedArtifact(appManager, "script", "script1.txt", isAsync, null, "site/scripts/script1.txt");
+                    await DeployNonZippedArtifact(appManager, "script", "dir1/script2.txt", isAsync, null, "site/scripts/dir1/script2.txt");
+
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { initialFileName, "dir1", "script1.txt" }, "site/scripts");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { initialFileName, "script2.txt" }, "site/scripts/dir1");
+                }
+
+                // Clean deployment
+                {
+                    await DeployNonZippedArtifact(appManager, "script", "dir/script.cmd", isAsync, true, "site/scripts/dir/script.cmd");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "dir" }, "site/scripts");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "script.cmd" }, "site/scripts/dir");
+
+                    await DeployNonZippedArtifact(appManager, "script", "script.cmd", isAsync, true, "site/scripts/script.cmd");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "script.cmd" }, "site/scripts");
+                }
             });
         }
 
@@ -87,14 +162,28 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestStaticFileDeployment", async appManager =>
             {
-                await DeployNonZippedArtifact(appManager, "static", "statictestfile1.txt", isAsync, null, "site/wwwroot/statictestfile1.txt");
-                await DeployNonZippedArtifact(appManager, "static", "statictestfile2.txt", isAsync, null, "site/wwwroot/statictestfile2.txt");
+                var initialFileName = await DeployRandomFilesEverywhere(appManager);
 
-                await DeployNonZippedArtifact(appManager, "static", "statictestdir/statictestfile3.txt", isAsync, null, "site/wwwroot/statictestdir/statictestfile3.txt");
-                await DeployNonZippedArtifact(appManager, "static", "statictestdir/statictestfile4.txt", isAsync, null, "site/wwwroot/statictestdir/statictestfile4.txt");
+                // Default deployment - incremental
+                {
+                    await DeployNonZippedArtifact(appManager, "static", "a.txt", isAsync, false, "site/wwwroot/a.txt");
+                    await DeployNonZippedArtifact(appManager, "static", "b.txt", isAsync, false, "site/wwwroot/b.txt");
+                    await DeployNonZippedArtifact(appManager, "static", "dir1/dir1a.txt", isAsync, false, "site/wwwroot/dir1/dir1a.txt");
+                    await DeployNonZippedArtifact(appManager, "static", "dir1/dir1b.txt", isAsync, false, "site/wwwroot/dir1/dir1b.txt");
 
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "statictestfile1.txt", "statictestfile2.txt", "statictestdir", "hostingstart.html" }, "site/wwwroot");
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "statictestfile3.txt", "statictestfile4.txt" }, "site/wwwroot/statictestdir");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { initialFileName, "webapps", "a.txt", "b.txt", "dir1", "hostingstart.html" }, "site/wwwroot");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "dir1a.txt", "dir1b.txt" }, "site/wwwroot/dir1");
+                }
+
+                // Clean deployment
+                {
+                    await DeployNonZippedArtifact(appManager, "static", "dir2/dir2a.txt", isAsync, true, "site/wwwroot/dir2/dir2a.txt");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "dir2" }, "site/wwwroot");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "dir2a.txt" }, "site/wwwroot/dir2");
+
+                    await DeployNonZippedArtifact(appManager, "static", "c.txt", isAsync, true, "site/wwwroot/c.txt");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "c.txt",  }, "site/wwwroot");
+                }
             });
         }
 
@@ -105,13 +194,19 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestStartupFileDeployment", async appManager =>
             {
-                var originalStartupFileContent = await DeployNonZippedArtifact(appManager, "startup", path: "invalid/path/to/be/sure/it/is/ignored/by/OneDeploy", isAsync: isAsync, isClean: null, expectedDeployPath: "site/scripts/startup.sh");
+                var initialFileName = await DeployRandomFilesEverywhere(appManager);
 
-                TestTracer.Trace("Verifying startup file is deployed and deployment record created.");
+                // Default deployment mode - overwrite previous startup file
+                {
+                    await DeployNonZippedArtifact(appManager, "startup", "invalid/path/to/test/that/it/is/ignored", isAsync, true, "site/scripts/startup.sh");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "startup.sh" }, "site/scripts");
+                }
 
-                var deployment = await appManager.DeploymentManager.GetResultAsync("latest");
-
-                Assert.Equal(DeployStatus.Success, deployment.Status);
+                // Clean deployment
+                {
+                    await DeployNonZippedArtifact(appManager, "startup", "invalid/path/to/test/that/it/is/ignored", isAsync, true, "site/scripts/startup.sh");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "startup.sh" }, "site/scripts");
+                }
             });
         }
 
@@ -122,21 +217,28 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestZipDeployment", async appManager =>
             {
-                var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
-                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "zip", null, isAsync);
-                var expectedFiles1 = files1.Select(f => f.Filename).ToList();
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, expectedFiles1.ToArray(), "site/wwwroot");
+                // Incremental deployment  not the default mode
+                {
+                    var initialFileName = await DeployRandomFilesEverywhere(appManager);
 
-                var files2 = DeploymentTestHelper.CreateRandomFilesForZip(10);
-                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files2, "zip", null, isAsync);
-                var expectedFiles2 = files2.Select(f => f.Filename).ToList();
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, expectedFiles2.ToArray(), "site/wwwroot");
+                    var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
+                    await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "zip", null, isAsync, isClean: false);
+                    var expectedFiles1 = files1.Select(f => f.Filename).ToList();
+                    expectedFiles1.Add(initialFileName);
+                    expectedFiles1.Add("webapps");
+                    expectedFiles1.Add("hostingstart.html");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, expectedFiles1.ToArray(), "site/wwwroot");
+                }
 
-                var files3 = DeploymentTestHelper.CreateRandomFilesForZip(10);
-                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files3, "zip", null, isAsync, isClean: false);
-                var expectedFiles3 = files3.Select(f => f.Filename).ToList();
-                expectedFiles3.AddRange(expectedFiles2);
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, expectedFiles3.ToArray(), "site/wwwroot");
+                // Default deployment - clean
+                {
+                    var initialFileName = await DeployRandomFilesEverywhere(appManager);
+
+                    var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
+                    await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "zip", null, isAsync);
+                    var expectedFiles1 = files1.Select(f => f.Filename).ToList();
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, expectedFiles1.ToArray(), "site/wwwroot");
+                }
             });
         }
 
@@ -152,20 +254,27 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestLegacyWarDeployment", async appManager =>
             {
-                // STEP 1A: First legacy war deployment
-                var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
-                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "war", "webapps/ROOT", isAsync);
+                var initialFileName = await DeployRandomFilesEverywhere(appManager);
 
-                // STEP 1B: Validate the result of the first legacy war deployment
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, files1.Select(f => f.Filename).ToArray(), "site/wwwroot/webapps/ROOT");
+                // Incremental deployment - NOT supported, will be ignored
+                {
+                    var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
+                    await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "war", "webapps/ROOT", isAsync, isClean: false);
 
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { initialFileName, "ROOT", "ROOT2" }, "site/wwwroot/webapps");
+                    var expectedFiles1 = files1.Select(file => file.Filename).ToList();
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, expectedFiles1.ToArray(), "site/wwwroot/webapps/ROOT");
+                }
+                
+                // Default deployment - clean
+                {
+                    var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
+                    await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "war", "webapps/ROOT2", isAsync);
 
-                // STEP 2A: Second legacy war deployment
-                var files2 = DeploymentTestHelper.CreateRandomFilesForZip(10);
-                await DeployZippedArtifact(appManager, appManager.OneDeployManager, files2, "war", "webapps/ROOT", isAsync);
-
-                // STEP 2B: Validate that the second legacy war deployment cleans up the files deployes by the first deployment
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, files2.Select(f => f.Filename).ToArray(), "site/wwwroot/webapps/ROOT");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { initialFileName, "ROOT", "ROOT2" }, "site/wwwroot/webapps");
+                    var expectedFiles1 = files1.Select(file => file.Filename).ToList();
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, expectedFiles1.ToArray(), "site/wwwroot/webapps/ROOT2");
+                }
             });
         }
 
@@ -222,23 +331,6 @@ namespace Kudu.FunctionalTests
             });
         }
 
-        //
-        // Creates a war and static file to deploy one after the other and checks for both files in /wwwroot
-        //
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public Task TestIncrementalDeployment(bool isAsync)
-        {
-            return ApplicationManager.RunAsync("TestIterativeDeployment", async appManager =>
-            {
-                await DeployNonZippedArtifact(appManager, "static", "staticfiletest1.txt", isAsync, null);
-                await DeployNonZippedArtifact(appManager, "static", "staticfiletest2.txt", isAsync, null);
-
-                await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "hostingstart.html", "staticfiletest1.txt", "staticfiletest2.txt" }, "site/wwwroot");
-            });
-        }
-
         // Tests that OneDeploy propagates the ZipDeploy manifest correct
         // to ensure that manifest-based deployments (eg: zipdeploy) are not affected by
         // OneDeploy based deployments
@@ -287,6 +379,24 @@ namespace Kudu.FunctionalTests
         {
             var observerdFileContent = appManager.VfsManager.ReadAllText(filePath);
             Assert.Equal(originalFileContent, observerdFileContent);
+        }
+
+        private static async Task<string> DeployRandomFilesEverywhere(
+            ApplicationManager appManager)
+        {
+            TestTracer.Trace("Deploying randome files everywhere");
+
+            var testFile = DeploymentTestHelper.CreateRandomTestFile();
+
+            appManager.VfsManager.WriteAllText($"site/scripts/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/libs/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/wwwroot/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/wwwroot/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/wwwroot/webapps/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/wwwroot/webapps/ROOT/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/wwwroot/webapps/ROOT2/{testFile.Filename}", testFile.Content);
+
+            return testFile.Content;
         }
 
         private static async Task<string> DeployNonZippedArtifact(
