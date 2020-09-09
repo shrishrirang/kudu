@@ -140,15 +140,12 @@ namespace Kudu
         public const string OneDeploy = "OneDeploy";
         public const string StackEnvVarName = "WEBSITE_STACK";
 
-        public const string ScriptsDirectoryRelativePath = "site/scripts";
-        public const string LibsDirectoryRelativePath = "site/libs";
-
         // Stacks supported by OneDeploy 
         public const string Tomcat = "TOMCAT";
         public const string JavaSE = "JAVA";
         public const string JBossEap = "JBOSSEAP";
 
-        public const bool RunTestAgainstWindows = false;
+        public const bool RunTestAgainstWindows = false; // TODO(shrirs): remove
 
     }
 }

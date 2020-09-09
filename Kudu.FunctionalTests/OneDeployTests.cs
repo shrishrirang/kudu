@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Kudu.Client.Deployment;
 using Kudu.Core.Deployment;
+using Kudu.Core.Helpers;
 using Kudu.TestHarness;
 using Kudu.TestHarness.Xunit;
 using Newtonsoft.Json;
@@ -140,7 +141,7 @@ namespace Kudu.FunctionalTests
                     await DeployNonZippedArtifact(appManager, "script", "dir1/script2.txt", isAsync, null, "site/scripts/dir1/script2.txt");
 
                     await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { initialFileName, "dir1", "script1.txt" }, "site/scripts");
-                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { initialFileName, "script2.txt" }, "site/scripts/dir1");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "script2.txt" }, "site/scripts/dir1");
                 }
 
                 // Clean deployment
@@ -195,17 +196,18 @@ namespace Kudu.FunctionalTests
             return ApplicationManager.RunAsync("TestStartupFileDeployment", async appManager =>
             {
                 var initialFileName = await DeployRandomFilesEverywhere(appManager);
+                var startupFileName = Constants.RunTestAgainstWindows ? "startup.cmd" : "startup.sh";
 
                 // Default deployment mode - overwrite previous startup file
                 {
-                    await DeployNonZippedArtifact(appManager, "startup", "invalid/path/to/test/that/it/is/ignored", isAsync, true, "site/scripts/startup.sh");
-                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "startup.sh" }, "site/scripts");
+                    await DeployNonZippedArtifact(appManager, "startup", "invalid/path/to/test/that/it/is/ignored", isAsync, true, $"site/scripts/{startupFileName}");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { startupFileName }, "site/scripts");
                 }
 
                 // Clean deployment
                 {
-                    await DeployNonZippedArtifact(appManager, "startup", "invalid/path/to/test/that/it/is/ignored", isAsync, true, "site/scripts/startup.sh");
-                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "startup.sh" }, "site/scripts");
+                    await DeployNonZippedArtifact(appManager, "startup", "invalid/path/to/test/that/it/is/ignored", isAsync, true, $"site/scripts/{startupFileName}");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { startupFileName }, "site/scripts");
                 }
             });
         }

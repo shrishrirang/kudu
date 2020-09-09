@@ -58,9 +58,9 @@ namespace Kudu.Core.Deployment.Generator
                 }
                 finally
                 {
-                    if (string.IsNullOrWhiteSpace(tempManifestPath))
+                    if (!string.IsNullOrWhiteSpace(tempManifestPath))
                     {
-                        File.Delete(tempManifestPath);
+                        FileSystemHelpers.DeleteFileSafe(tempManifestPath);
                     }
                 }
             }

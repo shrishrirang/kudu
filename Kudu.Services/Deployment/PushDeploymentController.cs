@@ -120,7 +120,7 @@ namespace Kudu.Services.Deployment
                 {
                     AllowDeploymentWhileScmDisabled = true,
                     Deployer = deployer,
-                    TargetDirectoryPath = Path.Combine("webapps", appName),
+                    TargetSubDirectoryRelativePath = Path.Combine("webapps", appName),
                     WatchedFilePath = Path.Combine("WEB-INF", "web.xml"),
                     IsContinuous = false,
                     AllowDeferredDeployment = false,
@@ -164,7 +164,7 @@ namespace Kudu.Services.Deployment
             [FromUri] string path = null,
             [FromUri] bool? restart = true,
             [FromUri] bool? clean = null,
-            [FromUri] string stack = null
+            [FromUri] bool ignoreStack = false
             )
         {
             using (_tracer.Step(Constants.OneDeploy))
@@ -177,12 +177,13 @@ namespace Kudu.Services.Deployment
                     {
                         requestObject = await Request.Content.ReadAsAsync<JObject>();
                         var armProperties = requestObject.Value<JObject>("properties");
+
                         type = armProperties.Value<string>("type");
                         async = armProperties.Value<bool>("async");
                         path = armProperties.Value<string>("path");
                         restart = armProperties.Value<bool?>("restart");
                         clean = armProperties.Value<bool?>("clean");
-                        stack = armProperties.Value<string>("stack");
+                        ignoreStack = armProperties.Value<bool>("ignorestack");
                     }
                 }
                 catch (Exception ex)
@@ -199,25 +200,6 @@ namespace Kudu.Services.Deployment
                 // 
                 bool isAsync = async;
 
-                var deploymentInfo = new ArtifactDeploymentInfo(_environment, _traceFactory)
-                {
-                    AllowDeploymentWhileScmDisabled = true,
-                    Deployer = Constants.OneDeploy,
-                    IsContinuous = false,
-                    AllowDeferredDeployment = false,
-                    IsReusable = false,
-                    TargetChangeset = DeploymentManager.CreateTemporaryChangeSet(message: Constants.OneDeploy),
-                    CommitId = null,
-                    RepositoryType = RepositoryType.None,
-                    Fetch = OneDeployFetch,
-                    DoFullBuildByDefault = false,
-                    Message = Constants.OneDeploy,
-                    WatchedFileEnabled = false,
-                    RestartAllowed = restart.GetValueOrDefault(true),
-                };
-
-                string websiteStack = !string.IsNullOrWhiteSpace(stack) ? stack : System.Environment.GetEnvironmentVariable(Constants.StackEnvVarName);
-
                 ArtifactType artifactType = ArtifactType.Invalid;
                 try
                 {
@@ -225,125 +207,139 @@ namespace Kudu.Services.Deployment
                 }
                 catch
                 {
-                    return Request.CreateResponse(HttpStatusCode.BadRequest, $"type='{type}' not recognized");
+                    return StatusCode400($"type='{type}' not recognized");
                 }
 
+                var deploymentInfo = new ArtifactDeploymentInfo(_environment, _traceFactory)
+                {
+                    AllowDeploymentWhileScmDisabled = true,
+                    Deployer = Constants.OneDeploy,
+                    IsContinuous = false,
+                    AllowDeferredDeployment = false,
+                    IsReusable = false,
+                    TargetRootPath = _environment.WebRootPath,
+                    TargetChangeset = DeploymentManager.CreateTemporaryChangeSet(message: Constants.OneDeploy),
+                    CommitId = null,
+                    RepositoryType = RepositoryType.None,
+                    Fetch = OneDeployFetch,
+                    DoFullBuildByDefault = false,
+                    Message = Constants.OneDeploy,
+                    WatchedFileEnabled = false,
+                    CleanupTargetDirectory = clean.GetValueOrDefault(false),
+                    RestartAllowed = restart.GetValueOrDefault(true),
+                };
+
+                string error;
                 switch (artifactType)
                 {
                     case ArtifactType.War:
-                        if(!string.Equals(websiteStack, Constants.Tomcat, StringComparison.OrdinalIgnoreCase))
+                        if (!OneDeployHelper.EnsureValidStack(Constants.Tomcat, ignoreStack, out error))
                         {
-                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"WAR files cannot be deployed to stack='{websiteStack}'. Expected stack='{Constants.Tomcat}'"); 
+                            return StatusCode400(error);
                         }
-                        
+
                         // If path is non-null, we assume this is a legacy war deployment, i.e. equivalent of wardeploy
-                        if(!string.IsNullOrWhiteSpace(path))
+                        if (!string.IsNullOrWhiteSpace(path))
                         {
                             //
                             // For legacy war deployments, the only path allowed is webapps/<directory-name>
                             //
 
-                            var segments = path.Split('/');
-                            if (segments.Length != 2 || !path.StartsWith("webapps/") || string.IsNullOrWhiteSpace(segments[1]))
+                            if (!OneDeployHelper.IsLegacyWarPathValid(path))
                             {
-                                return Request.CreateResponse(HttpStatusCode.BadRequest, $"path='{path}'. Only allowed path when type={artifactType} is webapps/<directory-name>. Example: path=webapps/ROOT");
+                                return StatusCode400($"path='{path}'. Only allowed path when type={artifactType} is webapps/<directory-name>. Example: path=webapps/ROOT");
                             }
 
-                            deploymentInfo.TargetDirectoryPath = Path.Combine(_environment.WebRootPath, path);
+                            deploymentInfo.TargetRootPath = Path.Combine(_environment.WebRootPath, path);
                             deploymentInfo.Fetch = LocalZipHandler;
+
+                            // Legacy war deployment is equivalent to wardeploy
+                            // So always do clean deploy.
                             deploymentInfo.CleanupTargetDirectory = true;
                             artifactType = ArtifactType.Zip;
                         }
                         else
                         {
                             // For type=war, if no path is specified, the target file is app.war
-                            deploymentInfo.TargetDirectoryPath = _environment.WebRootPath;
                             deploymentInfo.TargetFileName = "app.war";
                         }
 
                         break;
 
                     case ArtifactType.Jar:
-                        if (!string.Equals(websiteStack, Constants.JavaSE, StringComparison.OrdinalIgnoreCase))
+                        if (!OneDeployHelper.EnsureValidStack(Constants.JavaSE, ignoreStack, out error))
                         {
-                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"JAR files cannot be deployed to stack='{websiteStack}'. Expected stack='{Constants.JavaSE}'");
+                            return StatusCode400(error);
                         }
 
-                        deploymentInfo.TargetDirectoryPath = _environment.WebRootPath;
                         deploymentInfo.TargetFileName = "app.jar";
-
                         break;
 
                     case ArtifactType.Ear:
-                        // Currently not supported on Windows but here for future use
-                        if (!string.Equals(websiteStack, Constants.JBossEap, StringComparison.OrdinalIgnoreCase))
+                        if (!OneDeployHelper.EnsureValidStack(Constants.JBossEap, ignoreStack, out error))
                         {
-                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"EAR files cannot be deployed to stack='{websiteStack}'. Expected stack='{Constants.JBossEap}'");
+                            return StatusCode400(error);
                         }
 
-                        deploymentInfo.TargetDirectoryPath = _environment.WebRootPath;
                         deploymentInfo.TargetFileName = "app.ear";
-
                         break;
 
                     case ArtifactType.Lib:
-                        if (string.IsNullOrWhiteSpace(path))
+                        if (!OneDeployHelper.EnsureValidStack(Constants.JBossEap, ignoreStack, out error))
                         {
-                            // TODO(shrirs): Include usage in error messsages
-                            // TODO(shrirs): Improve error handling. Example: Path validation.
-                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"Path must be defined for library deployments");
+                            return StatusCode400(error);
                         }
 
-                        SetTargetDirectoyAndFileNameFromPath(deploymentInfo, Path.Combine(_environment.RootPath, Constants.LibsDirectoryRelativePath), path);
-
-                        deploymentInfo.CleanupTargetDirectory = clean.GetValueOrDefault(false);
-                    
+                        deploymentInfo.TargetRootPath = OneDeployHelper.GetLibsDirectoryAbsolutePath(_environment);
+                        OneDeployHelper.SetTargetSubDirectoyAndFileNameFromPath(deploymentInfo, path);
                         break;
 
                     case ArtifactType.Startup:
-                        SetTargetDirectoyAndFileNameFromPath(deploymentInfo, Path.Combine(_environment.RootPath, Constants.ScriptsDirectoryRelativePath), GetStartupFileName());
-
-                        deploymentInfo.CleanupTargetDirectory = clean.GetValueOrDefault(false);
-
+                        deploymentInfo.TargetRootPath = OneDeployHelper.GetScriptsDirectoryAbsolutePath(_environment);
+                        OneDeployHelper.SetTargetSubDirectoyAndFileNameFromPath(deploymentInfo, OneDeployHelper.GetStartupFileName());
                         break;
 
                     case ArtifactType.Script:
-                        if (string.IsNullOrWhiteSpace(path))
+                        if (!OneDeployHelper.EnsureValidStack(Constants.JBossEap, ignoreStack, out error))
                         {
-                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"Path must be defined for script deployments");
+                            return StatusCode400(error);
                         }
 
-                        SetTargetDirectoyAndFileNameFromPath(deploymentInfo, Path.Combine(_environment.RootPath, Constants.ScriptsDirectoryRelativePath), path);
-
-                        deploymentInfo.CleanupTargetDirectory = clean.GetValueOrDefault(false);
+                        deploymentInfo.TargetRootPath = OneDeployHelper.GetScriptsDirectoryAbsolutePath(_environment);
+                        OneDeployHelper.SetTargetSubDirectoyAndFileNameFromPath(deploymentInfo, path);
 
                         break;
 
                     case ArtifactType.Static:
-                        if (string.IsNullOrWhiteSpace(path))
+                        if (!OneDeployHelper.EnsureValidPath(artifactType, path, out error))
                         {
-                            return Request.CreateResponse(HttpStatusCode.BadRequest, $"Path must be defined for static file deployments");
+                            return StatusCode400(error);
                         }
 
-                        SetTargetDirectoyAndFileNameFromPath(deploymentInfo, _environment.WebRootPath, path);
-
-                        deploymentInfo.CleanupTargetDirectory = clean.GetValueOrDefault(false);
+                        OneDeployHelper.SetTargetSubDirectoyAndFileNameFromPath(deploymentInfo, path);
 
                         break;
 
                     case ArtifactType.Zip:
                         deploymentInfo.Fetch = LocalZipHandler;
+                        deploymentInfo.TargetSubDirectoryRelativePath = path;
 
+                        // Deployments for type=zip default to clean=true
                         deploymentInfo.CleanupTargetDirectory = clean.GetValueOrDefault(true);
 
                         break;
 
                     default:
-                        return Request.CreateResponse(HttpStatusCode.BadRequest, $"Artifact type '{artifactType}' not supported");
+                        return StatusCode400($"Artifact type '{artifactType}' not supported");
                 }
 
                 return await PushDeployAsync(deploymentInfo, isAsync, requestObject, artifactType);
             }
+        }
+
+        private HttpResponseMessage StatusCode400(string message)
+        {
+            return Request.CreateResponse(HttpStatusCode.BadRequest, message);
         }
 
         private static void SetTargetDirectoyAndFileNameFromPath(DeploymentInfoBase deploymentInfo, string defaultTargetDirectory, string path)
@@ -362,7 +358,7 @@ namespace Kudu.Services.Deployment
             relativeDirectoryPath = relativeDirectoryPath.TrimStart('/', '\\');
             var absoluteDirectoryPath = Path.Combine(defaultTargetDirectory, relativeDirectoryPath);
 
-            deploymentInfo.TargetDirectoryPath = absoluteDirectoryPath;
+            deploymentInfo.TargetSubDirectoryRelativePath = absoluteDirectoryPath;
         }
 
         private static string GetStartupFileName()
@@ -625,9 +621,22 @@ namespace Kudu.Services.Deployment
                 }
             }
 
-            // Create artifact staging directory before later use 
-            Directory.CreateDirectory(artifactDirectoryStagingPath);
-            var artifactFileStagingPath = Path.Combine(artifactDirectoryStagingPath, deploymentInfo.TargetFileName);
+            //
+            // We want to create a directory structure under 'artifactDirectoryStagingPath'
+            // such that it exactly matches the directory structure specified
+            // by deploymentInfo.TargetSubDirectoryRelativePath
+            // 
+            string stagingSubDirPath = artifactDirectoryStagingPath;
+
+            if (!string.IsNullOrWhiteSpace(artifactDeploymentInfo.TargetSubDirectoryRelativePath))
+            {
+                stagingSubDirPath = Path.Combine(artifactDirectoryStagingPath, artifactDeploymentInfo.TargetSubDirectoryRelativePath);
+            }
+
+            // Create artifact staging directory hierarchy before later use 
+            Directory.CreateDirectory(stagingSubDirPath);
+
+            var artifactFileStagingPath = Path.Combine(stagingSubDirPath, deploymentInfo.TargetFileName);
 
             // If RemoteUrl is non-null, it means the content needs to be downloaded from the Url source to the staging location
             // Else, it had been downloaded already so we just move the downloaded file to the staging location
@@ -717,12 +726,24 @@ namespace Kudu.Services.Deployment
                 var cleanTask = Task.Run(() => DeleteFilesAndDirsExcept(sourceZipFile, artifactFileStagingDirectory, tracer));
                 var extractTask = Task.Run(() =>
                 {
-                    FileSystemHelpers.CreateDirectory(artifactFileStagingDirectory);
+                    //
+                    // We want to create a directory structure under 'artifactFileStagingDirectory'
+                    // such that it exactly matches the directory structure specified
+                    // by deploymentInfo.TargetSubDirectoryRelativePath
+                    // 
+                    string extractSubDirectoryPath = artifactFileStagingDirectory;
+
+                    if (!string.IsNullOrWhiteSpace(deploymentInfo.TargetSubDirectoryRelativePath) && deploymentInfo.Deployer == Constants.OneDeploy)
+                    {
+                        extractSubDirectoryPath = Path.Combine(artifactFileStagingDirectory, deploymentInfo.TargetSubDirectoryRelativePath);
+                    }
+
+                    FileSystemHelpers.CreateDirectory(extractSubDirectoryPath);
 
                     using (var file = info.OpenRead())
                     using (var zip = new ZipArchive(file, ZipArchiveMode.Read))
                     {
-                        zip.Extract(artifactFileStagingDirectory, tracer, _settings.GetZipDeployDoNotPreserveFileTime());
+                        zip.Extract(extractSubDirectoryPath, tracer, _settings.GetZipDeployDoNotPreserveFileTime());
                     }
                 });
 
