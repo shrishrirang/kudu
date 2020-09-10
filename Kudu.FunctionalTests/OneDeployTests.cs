@@ -241,6 +241,17 @@ namespace Kudu.FunctionalTests
                     var expectedFiles1 = files1.Select(f => f.Filename).ToList();
                     await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, expectedFiles1.ToArray(), "site/wwwroot");
                 }
+
+                // Custom path
+                {
+                    var initialFileName = await DeployRandomFilesEverywhere(appManager);
+
+                    var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
+                    await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "zip", "dir1/dir2", isAsync);
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string [] { "dir1" }, "site/wwwroot");
+                    var expectedFiles1 = files1.Select(f => f.Filename).ToList();
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, expectedFiles1.ToArray(), "site/wwwroot/dir1/dir2");
+                }
             });
         }
 
