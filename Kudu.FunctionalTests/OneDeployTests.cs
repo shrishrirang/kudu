@@ -146,12 +146,12 @@ namespace Kudu.FunctionalTests
 
                 // Clean deployment
                 {
-                    await DeployNonZippedArtifact(appManager, "script", "dir/script.cmd", isAsync, true, "site/scripts/dir/script.cmd");
+                    await DeployNonZippedArtifact(appManager, "script", "dir/script2.txt", isAsync, true, "site/scripts/dir/script2.txt");
                     await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "dir" }, "site/scripts");
-                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "script.cmd" }, "site/scripts/dir");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "script2.txt" }, "site/scripts/dir");
 
-                    await DeployNonZippedArtifact(appManager, "script", "script.cmd", isAsync, true, "site/scripts/script.cmd");
-                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "script.cmd" }, "site/scripts");
+                    await DeployNonZippedArtifact(appManager, "script", "script2.txt", isAsync, true, "site/scripts/script2.txt");
+                    await DeploymentTestHelper.AssertSuccessfulDeploymentByFilenames(appManager, new string[] { "script2.txt" }, "site/scripts");
                 }
             });
         }
@@ -219,7 +219,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestZipDeployment", async appManager =>
             {
-                // Incremental deployment  not the default mode
+                // Incremental deployment - not the default mode
                 {
                     var initialFileName = await DeployRandomFilesEverywhere(appManager);
 
