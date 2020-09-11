@@ -28,7 +28,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestAppDotWarDeployment", async appManager =>
             {
-                var initialFileName = await DeployRandomFilesEverywhere(appManager);
+                var initialFileName = DeploymentTestHelper.DeployRandomFilesEverywhere(appManager);
 
                 // Default deployment mode - overwrite app.war
                 {
@@ -51,7 +51,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestAppDotJarDeployment", async appManager =>
             {
-                var initialFileName = await DeployRandomFilesEverywhere(appManager);
+                var initialFileName = DeploymentTestHelper.DeployRandomFilesEverywhere(appManager);
 
                 // Default deployment mode - overwrite app.jar
                 {
@@ -74,7 +74,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestAppDotEarDeployment", async appManager =>
             {
-                var initialFileName = await DeployRandomFilesEverywhere(appManager);
+                var initialFileName = DeploymentTestHelper.DeployRandomFilesEverywhere(appManager);
 
                 // Default deployment mode - overwrite app.ear
                 {
@@ -101,7 +101,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestLibDeployment", async appManager =>
             {
-                var initialFileName = await DeployRandomFilesEverywhere(appManager);
+                var initialFileName = DeploymentTestHelper.DeployRandomFilesEverywhere(appManager);
 
                 // Default deployment - incremental
                 {
@@ -133,7 +133,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestScriptDeployment", async appManager =>
             {
-                var initialFileName = await DeployRandomFilesEverywhere(appManager);
+                var initialFileName = DeploymentTestHelper.DeployRandomFilesEverywhere(appManager);
 
                 // Default deployment - incremental
                 {
@@ -163,7 +163,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestStaticFileDeployment", async appManager =>
             {
-                var initialFileName = await DeployRandomFilesEverywhere(appManager);
+                var initialFileName = DeploymentTestHelper.DeployRandomFilesEverywhere(appManager);
 
                 // Default deployment - incremental
                 {
@@ -195,8 +195,8 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestStartupFileDeployment", async appManager =>
             {
-                var initialFileName = await DeployRandomFilesEverywhere(appManager);
-                var startupFileName = Constants.RunTestAgainstWindows ? "startup.cmd" : "startup.sh";
+                var initialFileName = DeploymentTestHelper.DeployRandomFilesEverywhere(appManager);
+                var startupFileName = KuduUtils.RunningAgainstLinuxKudu ? "startup.sh" : "startup.cmd";
 
                 // Default deployment mode - overwrite previous startup file
                 {
@@ -221,7 +221,7 @@ namespace Kudu.FunctionalTests
             {
                 // Incremental deployment - not the default mode
                 {
-                    var initialFileName = await DeployRandomFilesEverywhere(appManager);
+                    var initialFileName = DeploymentTestHelper.DeployRandomFilesEverywhere(appManager);
 
                     var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
                     await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "zip", null, isAsync, isClean: false);
@@ -234,7 +234,7 @@ namespace Kudu.FunctionalTests
 
                 // Default deployment - clean
                 {
-                    var initialFileName = await DeployRandomFilesEverywhere(appManager);
+                    var initialFileName = DeploymentTestHelper.DeployRandomFilesEverywhere(appManager);
 
                     var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
                     await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "zip", null, isAsync);
@@ -244,7 +244,7 @@ namespace Kudu.FunctionalTests
 
                 // Custom path
                 {
-                    var initialFileName = await DeployRandomFilesEverywhere(appManager);
+                    var initialFileName = DeploymentTestHelper.DeployRandomFilesEverywhere(appManager);
 
                     var files1 = DeploymentTestHelper.CreateRandomFilesForZip(10);
                     await DeployZippedArtifact(appManager, appManager.OneDeployManager, files1, "zip", "dir1/dir2", isAsync);
@@ -267,7 +267,7 @@ namespace Kudu.FunctionalTests
         {
             return ApplicationManager.RunAsync("TestLegacyWarDeployment", async appManager =>
             {
-                var initialFileName = await DeployRandomFilesEverywhere(appManager);
+                var initialFileName = DeploymentTestHelper.DeployRandomFilesEverywhere(appManager);
 
                 // Incremental deployment - NOT supported, will be ignored
                 {
@@ -394,24 +394,6 @@ namespace Kudu.FunctionalTests
             Assert.Equal(originalFileContent, observerdFileContent);
         }
 
-        private static async Task<string> DeployRandomFilesEverywhere(
-            ApplicationManager appManager)
-        {
-            TestTracer.Trace("Deploying randome files everywhere");
-
-            var testFile = DeploymentTestHelper.CreateRandomTestFile();
-
-            appManager.VfsManager.WriteAllText($"site/scripts/{testFile.Filename}", testFile.Content);
-            appManager.VfsManager.WriteAllText($"site/libs/{testFile.Filename}", testFile.Content);
-            appManager.VfsManager.WriteAllText($"site/wwwroot/{testFile.Filename}", testFile.Content);
-            appManager.VfsManager.WriteAllText($"site/wwwroot/{testFile.Filename}", testFile.Content);
-            appManager.VfsManager.WriteAllText($"site/wwwroot/webapps/{testFile.Filename}", testFile.Content);
-            appManager.VfsManager.WriteAllText($"site/wwwroot/webapps/ROOT/{testFile.Filename}", testFile.Content);
-            appManager.VfsManager.WriteAllText($"site/wwwroot/webapps/ROOT2/{testFile.Filename}", testFile.Content);
-
-            return testFile.Content;
-        }
-
         private static async Task<string> DeployNonZippedArtifact(
             ApplicationManager appManager,
             string type,
@@ -437,7 +419,9 @@ namespace Kudu.FunctionalTests
             }
 
             if (expectedDeployPath != null)
+            {
                 VerifyDeployedArtifact(appManager, testFile.Content, expectedDeployPath);
+            }
 
             return testFile.Content;
         }

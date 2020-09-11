@@ -8,7 +8,7 @@ namespace Kudu.Core.Infrastructure
     public static class OperationManager
     {
         private const int DefaultRetries = 3;
-        private const int DefaultDelayBeforeRetry = 1000; // 250 ms // TODO(shrirs)
+        private const int DefaultDelayBeforeRetry = 250; // 250 ms
 
         public static void Attempt(Action action, int retries = DefaultRetries, int delayBeforeRetry = DefaultDelayBeforeRetry)
         {

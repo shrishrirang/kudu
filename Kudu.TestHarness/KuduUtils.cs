@@ -83,7 +83,7 @@ namespace Kudu.TestHarness
                 }
 
                 // Append the machine name to the site to avoid conflicting with other users running tests
-                return String.Format("{0}{1}", siteName, "shrirs2");
+                return String.Format("{0}{1}", siteName, Environment.MachineName);
             }
         }
 
@@ -92,6 +92,22 @@ namespace Kudu.TestHarness
             get
             {
                 return GetBooleanTestSetting("StopAfterFirstTestFailure");
+            }
+        }
+        
+        public static string CustomKuduUrl
+        {
+            get
+            {
+                return GetTestSetting("CustomKuduUrl");
+            }
+        }
+
+        public static bool RunningAgainstLinuxKudu
+        {
+            get
+            {
+                return GetBooleanTestSetting("RunningAgainstLinuxKudu");
             }
         }
 

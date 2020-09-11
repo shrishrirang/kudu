@@ -811,11 +811,9 @@ namespace Kudu.Core.Deployment
                 targetSubDirectoryRelativePath = deploymentInfo?.TargetSubDirectoryRelativePath;
             }
 
-            var rootDirectoryPath = string.IsNullOrWhiteSpace(deploymentInfo.TargetRootPath) ? environment.WebRootPath : deploymentInfo.TargetRootPath;
-
-            if (deploymentInfo.Deployer == Constants.OneDeploy)
+            if (deploymentInfo?.Deployer == Constants.OneDeploy)
             {
-                return rootDirectoryPath;
+                return string.IsNullOrWhiteSpace(deploymentInfo.TargetRootPath) ? environment.WebRootPath : deploymentInfo.TargetRootPath;
             }
 
             if (!String.IsNullOrWhiteSpace(targetSubDirectoryRelativePath))

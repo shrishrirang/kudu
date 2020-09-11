@@ -233,7 +233,7 @@ namespace Kudu.Services.Deployment
                 switch (artifactType)
                 {
                     case ArtifactType.War:
-                        if (!OneDeployHelper.EnsureValidStack(Constants.Tomcat, ignoreStack, out error))
+                        if (!OneDeployHelper.EnsureValidStack(OneDeployHelper.Tomcat, ignoreStack, out error))
                         {
                             return StatusCode400(error);
                         }
@@ -267,7 +267,7 @@ namespace Kudu.Services.Deployment
                         break;
 
                     case ArtifactType.Jar:
-                        if (!OneDeployHelper.EnsureValidStack(Constants.JavaSE, ignoreStack, out error))
+                        if (!OneDeployHelper.EnsureValidStack(OneDeployHelper.JavaSE, ignoreStack, out error))
                         {
                             return StatusCode400(error);
                         }
@@ -276,7 +276,7 @@ namespace Kudu.Services.Deployment
                         break;
 
                     case ArtifactType.Ear:
-                        if (!OneDeployHelper.EnsureValidStack(Constants.JBossEap, ignoreStack, out error))
+                        if (!OneDeployHelper.EnsureValidStack(OneDeployHelper.JBossEap, ignoreStack, out error))
                         {
                             return StatusCode400(error);
                         }
@@ -285,7 +285,7 @@ namespace Kudu.Services.Deployment
                         break;
 
                     case ArtifactType.Lib:
-                        if (!OneDeployHelper.EnsureValidStack(Constants.JBossEap, ignoreStack, out error))
+                        if (!OneDeployHelper.EnsureValidPath(artifactType, path, out error))
                         {
                             return StatusCode400(error);
                         }
@@ -300,7 +300,7 @@ namespace Kudu.Services.Deployment
                         break;
 
                     case ArtifactType.Script:
-                        if (!OneDeployHelper.EnsureValidStack(Constants.JBossEap, ignoreStack, out error))
+                        if (!OneDeployHelper.EnsureValidPath(artifactType, path, out error))
                         {
                             return StatusCode400(error);
                         }
@@ -340,25 +340,6 @@ namespace Kudu.Services.Deployment
         private HttpResponseMessage StatusCode400(string message)
         {
             return Request.CreateResponse(HttpStatusCode.BadRequest, message);
-        }
-
-        private static void SetTargetDirectoyAndFileNameFromPath(DeploymentInfoBase deploymentInfo, string defaultTargetDirectory, string path)
-        {
-            // Extract directory path and file name from 'path'
-            // Example: path=a/b/c.jar => TargetDirectoryName=a/b and TargetFileName=c.jar
-            deploymentInfo.TargetFileName = Path.GetFileName(path);
-
-            var relativeDirectoryPath = Path.GetDirectoryName(path);
-
-            relativeDirectoryPath = relativeDirectoryPath ?? string.Empty;
-
-            // Translate /foo/bar to foo/bar
-            // Translate \foo\bar to foo\bar
-            // That way, we can combine it with %HOME% to get the absolute path
-            relativeDirectoryPath = relativeDirectoryPath.TrimStart('/', '\\');
-            var absoluteDirectoryPath = Path.Combine(defaultTargetDirectory, relativeDirectoryPath);
-
-            deploymentInfo.TargetSubDirectoryRelativePath = absoluteDirectoryPath;
         }
 
         private static string GetStartupFileName()

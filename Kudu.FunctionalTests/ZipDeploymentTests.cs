@@ -508,7 +508,7 @@ namespace Kudu.FunctionalTests
 
         private static string GetZipDeployer()
         {
-            return Constants.RunTestAgainstWindows ? "ZipDeploy" : "Push-Deployer";
+            return KuduUtils.RunningAgainstLinuxKudu ? "Push-Deployer" : "ZipDeploy";
         }
 
         private static string simplePackageJsonWithDependencyContent = @"{

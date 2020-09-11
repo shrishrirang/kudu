@@ -94,8 +94,28 @@ namespace Kudu.FunctionalTests
             var entries = await appManager.VfsManager.ListAsync(path);
             var observedFileNames = entries.Select(e => e.Name);
 
-            var filenameSet = new HashSet<string>(expectedFileNames);
-            Assert.True(filenameSet.SetEquals(entries.Select(e => e.Name)), string.Join(",", filenameSet) + " != " + string.Join(",", entries.Select(e => e.Name)));
+            var observedFileNameSet = new HashSet<string>(expectedFileNames);
+            Assert.True(observedFileNameSet.SetEquals(entries.Select(e => e.Name)), string.Join(",", observedFileNameSet) + " != " + string.Join(",", entries.Select(e => e.Name)));
+        }
+
+        // Deploy files to all directories of interest
+        // Useful helper function for testing 'clean' deploy scenarios
+        public static string DeployRandomFilesEverywhere(
+            ApplicationManager appManager)
+        {
+            TestTracer.Trace("Deploying random files everywhere");
+
+            var testFile = DeploymentTestHelper.CreateRandomTestFile();
+
+            appManager.VfsManager.WriteAllText($"site/scripts/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/libs/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/wwwroot/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/wwwroot/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/wwwroot/webapps/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/wwwroot/webapps/ROOT/{testFile.Filename}", testFile.Content);
+            appManager.VfsManager.WriteAllText($"site/wwwroot/webapps/ROOT2/{testFile.Filename}", testFile.Content);
+
+            return testFile.Content;
         }
     }
 }
